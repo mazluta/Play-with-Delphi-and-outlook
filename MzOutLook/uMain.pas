@@ -1,5 +1,21 @@
 ﻿unit uMain;
 
+
+//****************************************************************************
+//***** Example of Using Extended MAPI
+//  foItems := FO.Items;
+//  Try
+//    // to find mail item by it's EntryID we need to use Extended Mapi
+//    // so - we loop for all mail items with Subject XX and check for its EntryID
+//    foItem := foItems.Find('[Subject]="' + Subject + '"') as MailItem;
+//    if foItem = nil then
+//      // if we get back the item as nil then we will look for sender email (always in Latin)
+//     foItem := foItems.Find('[SenderEmailAddress]="' + FromEmail + '"') as MailItem;
+//  Except;
+//    foItem := nil;
+//  End;
+//****************************************************************************
+
 interface
 
 uses
@@ -13,7 +29,6 @@ type
 
   TPlayWithOotlookFrm = class(TForm)
     Panel1: TPanel;
-    sbBuildFoldersList: TButton;
     sbGetProps: TButton;
     Panel2: TPanel;
     Panel3: TPanel;
@@ -57,7 +72,8 @@ type
     FileOpenDialog: TFileOpenDialog;
     btnMoveMailItemToOtherFolder: TButton;
     btnDeleteSelectedMailItem: TButton;
-    procedure sbBuildFoldersListClick(Sender: TObject);
+    sbBuildStoresList: TButton;
+    procedure sbBuildStoresListClick(Sender: TObject);
     procedure FormActivate(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
@@ -88,26 +104,22 @@ implementation
 
 Uses
   uOutlookPR,
-  uMailProps;
+  uMailProps,
+  SelectMapiFolder;
 
 procedure TPlayWithOotlookFrm.btnAddMsgStoreClick(Sender: TObject);
 Var
   PstFile  : String;
   NS       : Outlook2010._NameSpace;
-  olStores : Outlook2010._Stores;
-  olStore  : Outlook2010._Store;
-  CurStore : Integer;
-  NewStore : OleVariant;
 begin
   if FileOpenDialog.Execute then
   begin
     PstFile := FileOpenDialog.FileName;
     if UpperCase(ExtractFileExt(PstFile)) = UpperCase('.pst') then
     begin
-      NS := OutlookApp.Session;
-      NewStore := PstFile;
-      NS.AddStore(NewStore);
-      sbBuildFoldersList.Click;
+      NS := OutlookApp.GetNameSpace('MAPI');
+      NS.AddStore(OleVariant(PstFile));
+      sbBuildStoresList.Click;
     end;
   end;
 end;
@@ -122,7 +134,6 @@ Var
   olStore   : Outlook2010._Store;
   FO        : MAPIFolder;
   CurStore  : Integer;
-  NewStore  : OleVariant;
 begin
   if not StoresListTbl.Active then
     exit;
@@ -137,78 +148,117 @@ begin
         mtConfirmation,[mbYes,mbNo],0, mbNo) = mrNo then
     exit;
 
-  NS := OutlookApp.Session;
-
-  olStores := NS.Stores;
-  for CurStore := 1 to olStores.Count do
-  begin
-    olStore := olStores.Item(CurStore);
-    if olStore.StoreID = StoreID Then
+  Try
+    NS := OutlookApp.GetNameSpace('MAPI');
+    olStores := NS.Stores;
+    for CurStore := 1 to olStores.Count do
     begin
-      FO := olStore.GetRootFolder;
-      NS.RemoveStore(FO);
+      olStore := olStores.Item(CurStore);
+      if olStore.StoreID = StoreID Then
+      begin
+        FO := olStore.GetRootFolder;
+        NS.RemoveStore(FO);
 
-      sbBuildFoldersList.Click;
+        sbBuildStoresList.Click;
+        Break;
+      end;
     end;
-  end;
-
+  Finally
+    FO := nil;
+    olStore := nil;
+    olStores := nil;
+    NS := nil;
+  End;
 end;
 
 procedure TPlayWithOotlookFrm.btnMoveMailItemToOtherFolderClick(Sender: TObject);
 Var
   NS        : Outlook2010._NameSpace;
-  FO        : Outlook2010.MAPIFolder;
-  Folder    : Outlook2010.MAPIFolder;
-  foItems   : Outlook2010.Items;
-  foItem    : Outlook2010.MailItem;
+  MailEntryID : WideString;
+  StoreID     : String;
+  SelectedID  : String;
+  FolderDst   : System.IDispatch;
+  ItemToMove  : System.IDispatch;
 begin
+  if not MailsListTbl.Active then
+    Exit;
+  if MailsListTbl.RecordCount = 0 then
+    Exit;
+
   // 1. find the folder you want to move the MailItem to.
-  // 2. fine the MailItem as Outlook2010.MailItem object
+  // 2. find the MailItem as Outlook2010.MailItem object
   // 3. move the item to that folder
 
-  //if Assigned(Folder) then
-  //begin
-  //  foItem.Move(Folder);
-  //end;
+  SelectedID := '';
+  Try
+    SelectMapiFolderFrm := TSelectMapiFolderFrm.Create(Application);
+    if SelectMapiFolderFrm.ShowModal = mrOk Then
+      SelectedID := SelectMapiFolderFrm.SelectedEnteryID;
+  Finally
+    FreeAndNil(SelectMapiFolderFrm);
+  End;
+
+  if SelectedID = '' Then
+    exit;
+
+  Try
+    NS := OutlookApp.GetNameSpace('MAPI');
+    StoreID  := MailsListTbl.FieldByName('StoreID').AsString;
+    FolderDst := NS.GetFolderFromID(SelectedID, OleVariant(StoreID));
+    if Assigned(FolderDst) then
+    begin
+      MailEntryID := MailsListTbl.FieldByName('EntryID').AsWideString;
+      ItemToMove  := NS.GetItemFromID(MailEntryID, OleVariant(StoreID));
+      if Assigned(ItemToMove) then
+      begin
+        (ItemToMove as MailItem).Move(FolderDst as Outlook2010.MAPIFolder);
+      end;
+    end;
+  Finally
+    ItemToMove := nil;
+    FolderDst := nil;
+    NS := nil;
+  End;
+
+  FoldersListTblAfterScroll(FoldersListTbl);
 end;
 
 procedure TPlayWithOotlookFrm.btnDeleteSelectedMailItemClick(Sender: TObject);
 Var
-  NS        : Outlook2010._NameSpace;
-  FO        : Outlook2010.MAPIFolder;
-  Folder    : Outlook2010.MAPIFolder;
-  foItems   : Outlook2010.Items;
-  foItem    : Outlook2010.MailItem;
-  CurItem   : Integer;
-  StoreID   : String;
-  FolderID  : String;
+  NS         : Outlook2010._NameSpace;
+  ItemToDel  : System.IDispatch;
+  ItemID     : String;
+  StoreID    : String;
+  FolderID   : String;
+  EntryID    : WideString;
 begin
-  //StoreID  := MailsListTbl.FieldByName('StoreID').AsString;
-  //FolderID := MailsListTbl.FieldByName('EntryID').AsString;
-  //
-  //NS := OutlookApp.GetNameSpace('MAPI');
-  //
-  //FO := NS.GetFolderFromID(OleVariant(FolderID),StoreID);
-  //
-  //foItems := FO.Items;
-  //
-  //Try
-  //  For CurItem := 1 to foItems.Count Do
-  //  begin
-  //    if foItem.EntryID = 'xxx' Then
-  //    begin
-  //      // delete selected mailItem
-  //      foItem.Delete;
-  //    end;
-  //  end;
-  //
-  // OR
-  // foItem := NS.GetItemFromID(EntryID);
-  // if Assigned(foItem) then
-  //   foItem.Delete;
+  if not MailsListTbl.Active then
+    Exit;
+  if MailsListTbl.RecordCount = 0 then
+    Exit;
 
-  //Finally
-  //End;
+  ItemID   := MailsListTbl.FieldByName('Number').AsString;
+  StoreID  := MailsListTbl.FieldByName('StoreID').AsString;
+  FolderID := MailsListTbl.FieldByName('FolderID').AsString;
+  EntryID  := MailsListTbl.FieldByName('EntryID').AsString;
+
+  if MessageDlg('Ok To Delete Msg No# - [' + ItemID + '] ?',
+        mtConfirmation,[mbYes,mbNo],0, mbNo) = mrNo then
+    exit;
+
+  Try
+    NS := OutlookApp.GetNameSpace('MAPI');
+    ItemToDel   := NS.GetItemFromID(EntryID, OleVariant(StoreID));
+    if Assigned(ItemToDel) then
+    begin
+      (ItemToDel as MailItem).Delete;
+    end;
+  Finally
+    ItemToDel := nil;
+    NS := nil;
+  End;
+
+  FoldersListTblAfterScroll(FoldersListTbl);
 end;
 
 procedure TPlayWithOotlookFrm.FoldersListTblAfterScroll(DataSet: TDataSet);
@@ -239,46 +289,52 @@ begin
     FolderID := DataSet.FieldByName('EntryID').AsString;
 
     NS := OutlookApp.GetNameSpace('MAPI');
-    FO := NS.GetFolderFromID(OleVariant(FolderID),StoreID);
-
-    foItems := FO.Items;
     Try
-      foItems.Sort('ReceivedTime',True);
-    Except;
-    End;
+      FO := NS.GetFolderFromID(FolderID, OleVariant(StoreID));
+      foItems := FO.Items;
+      Try
+        foItems.Sort('ReceivedTime',True);
+      Except;
+      End;
 
-    Try
-      MailsListTbl.DisableControls;
-      For CurItem := 1 to foItems.Count Do
-      begin
-        if Supports(foItems.Item(CurItem), MailItem, foItem) then
+      Try
+        MailsListTbl.DisableControls;
+        For CurItem := 1 to foItems.Count Do
         begin
-          MailsListTbl.Insert;
-          MailsListTbl.FieldByName('Number').AsInteger      := CurItem;
-          Try
-            MailsListTbl.FieldByName('ReciveDate').AsDateTime := foItem.ReceivedTime;
-          Except;
-            MailsListTbl.FieldByName('ReciveDate').AsDateTime := NULL;
-          End;
-          MailsListTbl.FieldByName('Subject').AsString      := foItem.Subject;
-          MailsListTbl.FieldByName('FromName').AsString     := foItem.SenderName;
-          MailsListTbl.FieldByName('FromEmail').AsString    := foItem.SenderEmailAddress;
-          MailsListTbl.FieldByName('CC').AsString           := foItem.CC;
-          MailsListTbl.FieldByName('BCC').AsString          := foItem.BCC;
-          MailsListTbl.FieldByName('StoreID').AsString      := StoreID;
-          MailsListTbl.FieldByName('FolderID').AsString     := FolderID;
-          MailsListTbl.FieldByName('EntryID').AsString      := foItem.EntryID;
-          MailsListTbl.Post;
+          if Supports(foItems.Item(CurItem), MailItem, foItem) then
+          begin
+            MailsListTbl.Insert;
+            MailsListTbl.FieldByName('Number').AsInteger      := CurItem;
+            Try
+              MailsListTbl.FieldByName('ReciveDate').AsDateTime := foItem.ReceivedTime;
+            Except;
+              MailsListTbl.FieldByName('ReciveDate').AsDateTime := NULL;
+            End;
+            MailsListTbl.FieldByName('Subject').AsString      := foItem.Subject;
+            MailsListTbl.FieldByName('FromName').AsString     := foItem.SenderName;
+            MailsListTbl.FieldByName('FromEmail').AsString    := foItem.SenderEmailAddress;
+            MailsListTbl.FieldByName('CC').AsString           := foItem.CC;
+            MailsListTbl.FieldByName('BCC').AsString          := foItem.BCC;
+            MailsListTbl.FieldByName('StoreID').AsString      := StoreID;
+            MailsListTbl.FieldByName('FolderID').AsString     := FolderID;
+            MailsListTbl.FieldByName('EntryID').AsString      := foItem.EntryID;
+            MailsListTbl.Post;
+          end;
         end;
-      end;
 
-      if MailsListTbl.RecordCount > 0 Then
-      begin
-        MailsListTbl.IndexName := 'ByNumber';
-        MailsListTbl.First;
-      end;
+        if MailsListTbl.RecordCount > 0 Then
+        begin
+          MailsListTbl.IndexName := 'ByNumber';
+          MailsListTbl.First;
+        end;
+      Finally
+        MailsListTbl.EnableControls;
+      End;
     Finally
-      MailsListTbl.EnableControls;
+      foItem := nil;
+      foItems := nil;
+      FO := nil;
+      NS := nil;
     End;
   Finally
     Screen.Cursor  := CurCursor;
@@ -352,23 +408,22 @@ begin
   end;
 end;
 
-procedure TPlayWithOotlookFrm.sbBuildFoldersListClick(Sender: TObject);
+procedure TPlayWithOotlookFrm.sbBuildStoresListClick(Sender: TObject);
 Var
   NS       : Outlook2010._NameSpace;
   olStores : Outlook2010._Stores;
   olStore  : Outlook2010._Store;
   CurStore : Integer;
-  NewStore : OleVariant;
 begin
   StoresListTbl.Close;
   StoresListTbl.CreateDataSet;
   StoresListTbl.Open;
   StoresListTbl.EmptyDataSet;
 
-  NS := OutlookApp.Session;
+  NS := OutlookApp.GetNameSpace('MAPI');
   Try
     StoresListTbl.DisableControls;
-    SwAvoidStoreScroll := True;
+    SwAvoidStoreScroll := True; //this will avoid build folder list
     Try
       olStores := NS.Stores;
       for CurStore := 1 to olStores.Count do
@@ -386,8 +441,11 @@ begin
     Finally
       SwAvoidStoreScroll := False;
     End;
-    StoresListTbl.First;
+    StoresListTbl.First; // now the folder list will be build
   Finally
+    olStore := nil;
+    olStores := nil;
+    NS := nil;
     StoresListTbl.EnableControls;
   End;
 end;
@@ -396,16 +454,10 @@ procedure TPlayWithOotlookFrm.sbGetPropsClick(Sender: TObject);
 Var
   NS        : Outlook2010._NameSpace;
   FO        : Outlook2010.MAPIFolder;
-  foItems   : Outlook2010.Items;
-  foItem    : Outlook2010.MailItem;
-  olPA      : Outlook2010._PropertyAccessor;
+  ItemProp  : System.IDispatch;
   StoreID   : String;
   FolderID  : String;
   EntryID   : String;
-  Subject   : String;
-  FromEmail : String;
-  FilterCriteria : String;
-  MailEntryID    : String;
 begin
   if not MailsListTbl.Active then
     Exit;
@@ -415,57 +467,17 @@ begin
   StoreID   := MailsListTbl.FieldByName('StoreID').AsString;
   FolderID  := MailsListTbl.FieldByName('FolderID').AsString;
   EntryID   := MailsListTbl.FieldByName('EntryID').AsString;
-  Subject   := MailsListTbl.FieldByName('Subject').AsString;
-  FromEmail := MailsListTbl.FieldByName('FromEmail').AsString;
 
   NS := OutlookApp.GetNameSpace('MAPI');
-  FO := NS.GetFolderFromID(OleVariant(FolderID),StoreID);
-
-  foItems := FO.Items;
   Try
-    // to find mail item by it's EntryID we need to use Extended Mapi
-    // so - we loop for all mail items with Subject XX and check for its EntryID
-    foItem := foItems.Find('[Subject]="' + Subject + '"') as MailItem;
-    if foItem = nil then
-      // if we get back the item as nil then we will look for sender email (always in Latin)
-      foItem := foItems.Find('[SenderEmailAddress]="' + FromEmail + '"') as MailItem;
-  Except;
-    foItem := nil;
-  End;
+    FO := NS.GetFolderFromID(FolderID, OleVariant(StoreID));
+    ItemProp  := NS.GetItemFromID(EntryID, OleVariant(StoreID));
 
-  if foItem <> nil Then
-  begin
-    olPA := foItem.PropertyAccessor;
-    Try
-      MailEntryID    := olPA.BinaryToString(foItem.PropertyAccessor.GetProperty(PR_ENTRYID));
-    Except;
-      MailEntryID    := '';
-    End;
-
-    while MailEntryID <> EntryID do
-    begin
-      Try
-        foItem := foItems.FindNext as MailItem;
-
-        olPA := foItem.PropertyAccessor;
-        Try
-          MailEntryID    := olPA.BinaryToString(foItem.PropertyAccessor.GetProperty(PR_ENTRYID));
-        Except;
-          MailEntryID    := '';
-        End;
-      Except;
-        foItem := nil;
-      End;
-
-      if foItem = nil Then
-        Break;
-    end;
-
-    if foItem <> nil Then
+    if Assigned(ItemProp) Then
     begin
       Try
         MailPropsFrm := TMailPropsFrm.Create(Application);
-        MailPropsFrm.MI := foItem;
+        MailPropsFrm.MI := (ItemProp as MailItem);
         MailPropsFrm.ShowModal;
       Finally
         FreeAndNil(MailPropsFrm);
@@ -473,9 +485,11 @@ begin
     End
     else
       ShowMessage('Mail Item not found');
-  End
-  else
-    ShowMessage('Mail Item not found');
+  Finally
+    ItemProp := nil;
+    FO := nil;
+    NS := nil;
+  End;
 end;
 
 procedure TPlayWithOotlookFrm.StoresListTblAfterScroll(DataSet: TDataSet);
@@ -489,7 +503,6 @@ Var
   rootFolder : MAPIFolder;
   FL         : Outlook2010._Folders;
   FO         : Outlook2010.Folder;
-  FT         : String;
   CurCursor  : TCursor;
 begin
   If SwAvoidStoreScroll Then
@@ -505,7 +518,7 @@ begin
     FoldersListTbl.Open;
     FoldersListTbl.EmptyDataSet;
 
-    NS := OutlookApp.Session;
+    NS := OutlookApp.GetNameSpace('MAPI');
     Try
       FoldersListTbl.DisableControls;
       olStores := NS.Stores;
@@ -548,6 +561,11 @@ begin
         end;
       end;
     Finally
+      FO := nil;
+      FL := nil;
+      olStore := nil;
+      olStores := nil;
+      NS := nil;
       FoldersListTbl.EnableControls;
     End;
   Finally

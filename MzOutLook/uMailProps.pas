@@ -35,6 +35,7 @@ type
     procedure btnViewAsHtmlBodyClick(Sender: TObject);
     procedure btnViewAsRTFbodyClick(Sender: TObject);
     procedure btnViewAsMhtmlClick(Sender: TObject);
+    procedure FormClose(Sender: TObject; var Action: TCloseAction);
   private
     { Private declarations }
     OnFirstTime : Boolean;
@@ -142,6 +143,12 @@ begin
   Finally
     OnFirstTime := False;
   End;
+end;
+
+procedure TMailPropsFrm.FormClose(Sender: TObject; var Action: TCloseAction);
+begin
+  if Assigned(MI) then
+    MI := nil;
 end;
 
 procedure TMailPropsFrm.FormCreate(Sender: TObject);

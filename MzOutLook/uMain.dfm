@@ -34,27 +34,17 @@ object PlayWithOotlookFrm: TPlayWithOotlookFrm
     Height = 41
     Align = alBottom
     TabOrder = 0
-    object sbBuildFoldersList: TButton
-      AlignWithMargins = True
-      Left = 4
-      Top = 4
-      Width = 139
-      Height = 33
-      Align = alLeft
-      Caption = 'Build Folders List'
-      TabOrder = 0
-      OnClick = sbBuildFoldersListClick
-    end
     object sbGetProps: TButton
       AlignWithMargins = True
-      Left = 149
+      Left = 4
       Top = 4
       Width = 98
       Height = 33
       Align = alLeft
       Caption = 'Get Props'
-      TabOrder = 1
+      TabOrder = 0
       OnClick = sbGetPropsClick
+      ExplicitLeft = 149
     end
     object btnMoveMailItemToOtherFolder: TButton
       AlignWithMargins = True
@@ -64,9 +54,8 @@ object PlayWithOotlookFrm: TPlayWithOotlookFrm
       Height = 33
       Align = alRight
       Caption = 'Move Item To other Folder'
-      TabOrder = 2
+      TabOrder = 1
       OnClick = btnMoveMailItemToOtherFolderClick
-      ExplicitLeft = 253
     end
     object btnDeleteSelectedMailItem: TButton
       AlignWithMargins = True
@@ -76,7 +65,7 @@ object PlayWithOotlookFrm: TPlayWithOotlookFrm
       Height = 33
       Align = alRight
       Caption = 'Delete The Mail Item'
-      TabOrder = 3
+      TabOrder = 2
       OnClick = btnDeleteSelectedMailItemClick
     end
   end
@@ -148,25 +137,40 @@ object PlayWithOotlookFrm: TPlayWithOotlookFrm
         TabOrder = 1
         object btnAddMsgStore: TButton
           AlignWithMargins = True
-          Left = 3
+          Left = 206
           Top = 3
           Width = 120
           Height = 35
-          Align = alLeft
+          Align = alRight
           Caption = 'Add MsgStore'
           TabOrder = 0
           OnClick = btnAddMsgStoreClick
+          ExplicitLeft = 3
         end
         object btnRemoveMsgStore: TButton
           AlignWithMargins = True
-          Left = 129
+          Left = 332
           Top = 3
           Width = 120
           Height = 35
-          Align = alLeft
+          Align = alRight
           Caption = 'Remove MsgStore'
           TabOrder = 1
           OnClick = btnRemoveMsgStoreClick
+          ExplicitLeft = 129
+        end
+        object sbBuildStoresList: TButton
+          AlignWithMargins = True
+          Left = 3
+          Top = 3
+          Width = 139
+          Height = 35
+          Align = alLeft
+          Caption = 'Build Stores List'
+          TabOrder = 2
+          OnClick = sbBuildStoresListClick
+          ExplicitLeft = -55
+          ExplicitTop = 7
         end
       end
     end
