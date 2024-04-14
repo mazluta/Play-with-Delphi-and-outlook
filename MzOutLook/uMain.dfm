@@ -44,7 +44,6 @@ object PlayWithOotlookFrm: TPlayWithOotlookFrm
       Caption = 'Get Props'
       TabOrder = 0
       OnClick = sbGetPropsClick
-      ExplicitLeft = 149
     end
     object btnMoveMailItemToOtherFolder: TButton
       AlignWithMargins = True
@@ -145,7 +144,6 @@ object PlayWithOotlookFrm: TPlayWithOotlookFrm
           Caption = 'Add MsgStore'
           TabOrder = 0
           OnClick = btnAddMsgStoreClick
-          ExplicitLeft = 3
         end
         object btnRemoveMsgStore: TButton
           AlignWithMargins = True
@@ -157,7 +155,6 @@ object PlayWithOotlookFrm: TPlayWithOotlookFrm
           Caption = 'Remove MsgStore'
           TabOrder = 1
           OnClick = btnRemoveMsgStoreClick
-          ExplicitLeft = 129
         end
         object sbBuildStoresList: TButton
           AlignWithMargins = True
@@ -169,8 +166,6 @@ object PlayWithOotlookFrm: TPlayWithOotlookFrm
           Caption = 'Build Stores List'
           TabOrder = 2
           OnClick = sbBuildStoresListClick
-          ExplicitLeft = -55
-          ExplicitTop = 7
         end
       end
     end
