@@ -17,7 +17,8 @@ Want to know how to play with Outlook inside Delphi units?
 12. How to show MailItem in plainText, HTML, RTF and MHTML.
 13. How to save MailItem as *.msg.
 14. How to save MailItem as *. MHTML.
-15. And much more
+15. How to save MailItem attachments
+16. And much more
 
 With this source code, Delphi developers can act with Microsoft Outlook MAPI.
 You will be able to read all the PST files,
