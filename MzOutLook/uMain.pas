@@ -59,6 +59,7 @@ type
     MailsListTblFolderID: TWideStringField;
     MailsListTblEntryID: TWideStringField;
     MailsListTblSearchKey: TWideStringField;
+    MailsListTblHasAttach: TBooleanField;
     StoresListDS: TDataSource;
     StoresListTbl: TClientDataSet;
     StoresListTblNumber: TIntegerField;
@@ -73,6 +74,11 @@ type
     btnMoveMailItemToOtherFolder: TButton;
     btnDeleteSelectedMailItem: TButton;
     sbBuildStoresList: TButton;
+    btnSaveAttachment: TButton;
+    btnSaveMessage: TButton;
+    btnSaveAsMHTML: TButton;
+    FileSaveDialog: TFileSaveDialog;
+    FileOpenDialogDir: TFileOpenDialog;
     procedure sbBuildStoresListClick(Sender: TObject);
     procedure FormActivate(Sender: TObject);
     procedure FormCreate(Sender: TObject);
@@ -86,12 +92,16 @@ type
     procedure btnRemoveMsgStoreClick(Sender: TObject);
     procedure btnMoveMailItemToOtherFolderClick(Sender: TObject);
     procedure btnDeleteSelectedMailItemClick(Sender: TObject);
+    procedure btnSaveMessageClick(Sender: TObject);
+    procedure btnSaveAsMHTMLClick(Sender: TObject);
+    procedure btnSaveAttachmentClick(Sender: TObject);
   private
     { Private declarations }
     OnFirstTime   : Boolean;
     SwAvoidStoreScroll  : Boolean;
     SwAvoidFolderScroll : Boolean;
     OutlookApp    : Outlook2010.TOutlookApplication;
+    procedure ReConnectOutlookApp;
   public
     { Public declarations }
   end;
@@ -103,6 +113,7 @@ implementation
 {$R *.dfm}
 
 Uses
+  IOUtils,
   uOutlookPR,
   uMailProps,
   SelectMapiFolder;
@@ -169,6 +180,154 @@ begin
     olStores := nil;
     NS := nil;
   End;
+end;
+
+procedure TPlayWithOotlookFrm.btnSaveAsMHTMLClick(Sender: TObject);
+Var
+  FileName    : String;
+  NS          : Outlook2010._NameSpace;
+  MailEntryID : WideString;
+  StoreID     : String;
+  ItemToSave  : System.IDispatch;
+begin
+  if not MailsListTbl.Active then
+    Exit;
+  if MailsListTbl.RecordCount = 0 then
+    Exit;
+
+  FileSaveDialog.DefaultExtension := 'mhtml';
+  if FileSaveDialog.Execute then
+  begin
+    FileName := FileSaveDialog.FileName;
+    If UpperCase(ExtractFileExt(FileName)) <> UpperCase('.mhtml') Then
+      FileName := FileName + '.mhtml';
+
+    Try
+      NS := OutlookApp.GetNameSpace('MAPI');
+      StoreID  := MailsListTbl.FieldByName('StoreID').AsString;
+      MailEntryID := MailsListTbl.FieldByName('EntryID').AsWideString;
+      ItemToSave  := NS.GetItemFromID(MailEntryID, OleVariant(StoreID));
+      if Assigned(ItemToSave) then
+      begin
+        (ItemToSave as MailItem).SaveAs(FileName,olMHTML);
+      end;
+    Finally
+      ItemToSave := nil;
+      NS := nil;
+    End;
+    ReConnectOutlookApp;
+    ShowMessage('Mail Save As : ' + FileName);
+  end;
+end;
+
+procedure TPlayWithOotlookFrm.btnSaveAttachmentClick(Sender: TObject);
+Var
+  SaveToFolder : String;
+  FileName     : String;
+  FullFileName : String;
+  NS           : Outlook2010._NameSpace;
+  MailEntryID  : WideString;
+  StoreID      : String;
+  ItemToSave   : System.IDispatch;
+  CurItem      : Integer;
+
+  function  RemoveLastEnterChar(SrcString : WideString) : WideString;
+  begin
+    // Remove The Last $D$A From SrcString;
+
+    Result := SrcString;
+    While True Do
+    begin
+      IF (Copy(Result,Length(Result),1) = #13) Or
+         (Copy(Result,Length(Result),1) = #10) Then
+      begin
+        Result := Copy(Result,1,Length(Result)-1);
+      end
+      else
+        Break;
+    end;
+  end;
+
+  function  RemoveBackSlashChar(SrcString : String) : String;
+  begin
+    // Remove The Last '\' From SrcString;
+    Result := RemoveLastEnterChar(SrcString);
+    IF Copy(SrcString,Length(SrcString),1) = '\' Then
+      Result := Copy(Result,1,Length(Result)-1);
+  end;
+
+begin
+  if not MailsListTbl.Active then
+    Exit;
+  if MailsListTbl.RecordCount = 0 then
+    Exit;
+
+  if not MailsListTbl.FieldByName('HasAttach').AsBoolean Then
+    raise System.SysUtils.Exception.Create('This mail has no attachtments');
+
+  SaveToFolder := '';
+  if FileOpenDialogDir.Execute then
+  begin
+    SaveToFolder := FileOpenDialogDir.FileName;
+    Try
+      NS          := OutlookApp.GetNameSpace('MAPI');
+      StoreID     := MailsListTbl.FieldByName('StoreID').AsString;
+      MailEntryID := MailsListTbl.FieldByName('EntryID').AsWideString;
+      ItemToSave  := NS.GetItemFromID(MailEntryID, OleVariant(StoreID));
+      if Assigned(ItemToSave) then
+      begin
+        For CurItem := 1 to (ItemToSave as MailItem).Attachments.Count do
+        begin
+          FileName     := (ItemToSave as Outlook2010.MailItem).Attachments.Item(CurItem).FileName;
+          FullFileName := RemoveBackSlashChar(SaveToFolder) + '\' + IntToStr(CurItem) + '_' + FileName;
+          (ItemToSave as Outlook2010.MailItem).Attachments.Item(CurItem).SaveAsFile(FullFileName);
+        end;
+      end;
+    Finally
+      ItemToSave := nil;
+      NS := nil;
+    End;
+
+    ShowMessage('Attachment have been saved to Folder : ' + SaveToFolder);
+  end;
+end;
+
+procedure TPlayWithOotlookFrm.btnSaveMessageClick(Sender: TObject);
+Var
+  FileName    : String;
+  NS          : Outlook2010._NameSpace;
+  MailEntryID : WideString;
+  StoreID     : String;
+  ItemToSave  : System.IDispatch;
+begin
+  if not MailsListTbl.Active then
+    Exit;
+  if MailsListTbl.RecordCount = 0 then
+    Exit;
+
+  FileSaveDialog.DefaultExtension := 'msg';
+  if FileSaveDialog.Execute then
+  begin
+    FileName := FileSaveDialog.FileName;
+    If UpperCase(ExtractFileExt(FileName)) <> UpperCase('.msg') Then
+      FileName := FileName + '.Msg';
+
+    Try
+      NS := OutlookApp.GetNameSpace('MAPI');
+      StoreID  := MailsListTbl.FieldByName('StoreID').AsString;
+      MailEntryID := MailsListTbl.FieldByName('EntryID').AsWideString;
+      ItemToSave  := NS.GetItemFromID(MailEntryID, OleVariant(StoreID));
+      if Assigned(ItemToSave) then
+      begin
+        (ItemToSave as MailItem).SaveAs(FileName,olMSGUnicode);
+      end;
+    Finally
+      ItemToSave := nil;
+      NS := nil;
+    End;
+    ReConnectOutlookApp;
+    ShowMessage('Mail Save As : ' + FileName);
+  end;
 end;
 
 procedure TPlayWithOotlookFrm.btnMoveMailItemToOtherFolderClick(Sender: TObject);
@@ -264,6 +423,7 @@ end;
 procedure TPlayWithOotlookFrm.FoldersListTblAfterScroll(DataSet: TDataSet);
 Var
   NS       : Outlook2010._NameSpace;
+  //olPA     : _PropertyAccessor;
   StoreID  : String;
   FolderID : String;
   FO       : MAPIFolder;
@@ -271,6 +431,7 @@ Var
   foItem   : Outlook2010.MailItem;
   CurItem  : Integer;
   CurCursor  : TCursor;
+  fHasAttach : Boolean;
 
 begin
   If SwAvoidFolderScroll Then
@@ -303,6 +464,9 @@ begin
         begin
           if Supports(foItems.Item(CurItem), MailItem, foItem) then
           begin
+            //olPA := foItem.PropertyAccessor;
+            //PR_HASATTACH  : String = 'http://schemas.microsoft.com/mapi/proptag/0x0E1B000B'; {PT_BOOLEAN}
+            fHasAttach := foItem.PropertyAccessor.GetProperty(PR_HASATTACH);
             MailsListTbl.Insert;
             MailsListTbl.FieldByName('Number').AsInteger      := CurItem;
             Try
@@ -318,6 +482,8 @@ begin
             MailsListTbl.FieldByName('StoreID').AsString      := StoreID;
             MailsListTbl.FieldByName('FolderID').AsString     := FolderID;
             MailsListTbl.FieldByName('EntryID').AsString      := foItem.EntryID;
+            //MailsListTbl.FieldByName('HasAttach').AsBoolean   := (foItem.Attachments.Count > 0);
+            MailsListTbl.FieldByName('HasAttach').AsBoolean   := fHasAttach;
             MailsListTbl.Post;
           end;
         end;
@@ -339,6 +505,19 @@ begin
   Finally
     Screen.Cursor  := CurCursor;
   End;
+end;
+
+procedure TPlayWithOotlookFrm.ReConnectOutlookApp;
+begin
+  // this proc will prevent error : The RPC server is unavailable.
+
+  OutlookApp.Disconnect;
+  OutlookApp.Quit;
+  FreeAndNil(OutlookApp);
+
+  OutlookApp := TOutlookApplication.Create(Nil);
+  OutlookApp.ConnectKind := ckRunningOrNew;
+  OutlookApp.Connect;
 end;
 
 procedure TPlayWithOotlookFrm.FormActivate(Sender: TObject);

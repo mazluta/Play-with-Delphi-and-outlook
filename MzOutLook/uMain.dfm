@@ -67,6 +67,39 @@ object PlayWithOotlookFrm: TPlayWithOotlookFrm
       TabOrder = 2
       OnClick = btnDeleteSelectedMailItemClick
     end
+    object btnSaveAttachment: TButton
+      AlignWithMargins = True
+      Left = 384
+      Top = 4
+      Width = 120
+      Height = 33
+      Align = alRight
+      Caption = 'Save Attachments'
+      TabOrder = 3
+      OnClick = btnSaveAttachmentClick
+    end
+    object btnSaveMessage: TButton
+      AlignWithMargins = True
+      Left = 666
+      Top = 4
+      Width = 150
+      Height = 33
+      Align = alRight
+      Caption = 'Save Message As MSG'
+      TabOrder = 4
+      OnClick = btnSaveMessageClick
+    end
+    object btnSaveAsMHTML: TButton
+      AlignWithMargins = True
+      Left = 510
+      Top = 4
+      Width = 150
+      Height = 33
+      Align = alRight
+      Caption = 'Save Message As MHTML'
+      TabOrder = 5
+      OnClick = btnSaveAsMHTMLClick
+    end
   end
   object Panel2: TPanel
     Left = 0
@@ -100,6 +133,7 @@ object PlayWithOotlookFrm: TPlayWithOotlookFrm
         Align = alClient
         DataSource = StoresListDS
         Options = [dgTitles, dgIndicator, dgColumnResize, dgColLines, dgRowLines, dgTabs, dgRowSelect, dgAlwaysShowSelection, dgConfirmDelete, dgCancelOnExit, dgTitleClick, dgTitleHotTrack]
+        ReadOnly = True
         TabOrder = 0
         TitleFont.Charset = DEFAULT_CHARSET
         TitleFont.Color = clWindowText
@@ -185,6 +219,7 @@ object PlayWithOotlookFrm: TPlayWithOotlookFrm
         Align = alClient
         DataSource = FoldersListDS
         Options = [dgTitles, dgIndicator, dgColumnResize, dgColLines, dgRowLines, dgTabs, dgRowSelect, dgAlwaysShowSelection, dgConfirmDelete, dgCancelOnExit, dgTitleClick, dgTitleHotTrack]
+        ReadOnly = True
         TabOrder = 0
         TitleFont.Charset = DEFAULT_CHARSET
         TitleFont.Color = clWindowText
@@ -237,6 +272,7 @@ object PlayWithOotlookFrm: TPlayWithOotlookFrm
       Align = alClient
       DataSource = MailsListDS
       Options = [dgTitles, dgIndicator, dgColumnResize, dgColLines, dgRowLines, dgTabs, dgRowSelect, dgAlwaysShowSelection, dgConfirmDelete, dgCancelOnExit, dgTitleClick, dgTitleHotTrack]
+      ReadOnly = True
       TabOrder = 0
       TitleFont.Charset = DEFAULT_CHARSET
       TitleFont.Color = clWindowText
@@ -255,7 +291,7 @@ object PlayWithOotlookFrm: TPlayWithOotlookFrm
         item
           Expanded = False
           FieldName = 'Subject'
-          Width = 425
+          Width = 352
           Visible = True
         end
         item
@@ -275,6 +311,12 @@ object PlayWithOotlookFrm: TPlayWithOotlookFrm
           FieldName = 'FromName'
           Width = 200
           Visible = True
+        end
+        item
+          Expanded = False
+          FieldName = 'HasAttach'
+          Width = 72
+          Visible = True
         end>
     end
   end
@@ -285,7 +327,64 @@ object PlayWithOotlookFrm: TPlayWithOotlookFrm
   end
   object MailsListTbl: TClientDataSet
     Aggregates = <>
-    FieldDefs = <>
+    FieldDefs = <
+      item
+        Name = 'Number'
+        DataType = ftInteger
+      end
+      item
+        Name = 'ReciveDate'
+        DataType = ftDateTime
+      end
+      item
+        Name = 'Subject'
+        DataType = ftWideString
+        Size = 250
+      end
+      item
+        Name = 'FromName'
+        DataType = ftWideString
+        Size = 250
+      end
+      item
+        Name = 'FromEmail'
+        DataType = ftWideString
+        Size = 250
+      end
+      item
+        Name = 'CC'
+        DataType = ftWideString
+        Size = 250
+      end
+      item
+        Name = 'BCC'
+        DataType = ftWideString
+        Size = 250
+      end
+      item
+        Name = 'StoreID'
+        DataType = ftWideString
+        Size = 5000
+      end
+      item
+        Name = 'FolderID'
+        DataType = ftWideString
+        Size = 250
+      end
+      item
+        Name = 'EntryID'
+        DataType = ftWideString
+        Size = 250
+      end
+      item
+        Name = 'SearchKey'
+        DataType = ftWideString
+        Size = 250
+      end
+      item
+        Name = 'HasAttach'
+        DataType = ftBoolean
+      end>
     IndexDefs = <
       item
         Name = 'ByNumber'
@@ -353,6 +452,9 @@ object PlayWithOotlookFrm: TPlayWithOotlookFrm
     object MailsListTblSearchKey: TWideStringField
       FieldName = 'SearchKey'
       Size = 250
+    end
+    object MailsListTblHasAttach: TBooleanField
+      FieldName = 'HasAttach'
     end
   end
   object StoresListDS: TDataSource
@@ -448,5 +550,19 @@ object PlayWithOotlookFrm: TPlayWithOotlookFrm
     Options = [fdoPathMustExist, fdoFileMustExist]
     Left = 336
     Top = 62
+  end
+  object FileSaveDialog: TFileSaveDialog
+    FavoriteLinks = <>
+    FileTypes = <>
+    Options = []
+    Left = 144
+    Top = 336
+  end
+  object FileOpenDialogDir: TFileOpenDialog
+    FavoriteLinks = <>
+    FileTypes = <>
+    Options = [fdoPickFolders, fdoPathMustExist]
+    Left = 144
+    Top = 280
   end
 end
