@@ -8,7 +8,7 @@ Want to know how to play with Outlook inside Delphi units?
 3. How to select Folder.
 4. How to select MailItem.
 5. How to add/remove PST file to the Default MAPI
-6. How to show all folders in the Store.
+6. How to show all folders in the selected Store.
 7. How to show all MailItems in the selected Folder.
 8. How to DELETE MailItem.
 9. How to MOVE MailItem from one Folder to another.
