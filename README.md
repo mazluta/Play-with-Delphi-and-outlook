@@ -25,4 +25,4 @@ You will be able to read all the PST files,
 Read folders from each PST file,
 Read all mail items from specific folder
 See the Property of the MailItem
-and learn how to Display or save Mailitem Message.
+and learn how to Display or save Mailitem Messages and the attachments from the MailItem selected.
