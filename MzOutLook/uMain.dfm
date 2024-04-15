@@ -100,6 +100,18 @@ object PlayWithOotlookFrm: TPlayWithOotlookFrm
       TabOrder = 5
       OnClick = btnSaveAsMHTMLClick
     end
+    object btnSendMail: TButton
+      AlignWithMargins = True
+      Left = 258
+      Top = 4
+      Width = 120
+      Height = 33
+      Align = alRight
+      Caption = 'Send mail'
+      TabOrder = 6
+      OnClick = btnSendMailClick
+      ExplicitLeft = 240
+    end
   end
   object Panel2: TPanel
     Left = 0

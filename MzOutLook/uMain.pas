@@ -79,6 +79,7 @@ type
     btnSaveAsMHTML: TButton;
     FileSaveDialog: TFileSaveDialog;
     FileOpenDialogDir: TFileOpenDialog;
+    btnSendMail: TButton;
     procedure sbBuildStoresListClick(Sender: TObject);
     procedure FormActivate(Sender: TObject);
     procedure FormCreate(Sender: TObject);
@@ -95,6 +96,7 @@ type
     procedure btnSaveMessageClick(Sender: TObject);
     procedure btnSaveAsMHTMLClick(Sender: TObject);
     procedure btnSaveAttachmentClick(Sender: TObject);
+    procedure btnSendMailClick(Sender: TObject);
   private
     { Private declarations }
     OnFirstTime   : Boolean;
@@ -116,7 +118,8 @@ Uses
   IOUtils,
   uOutlookPR,
   uMailProps,
-  SelectMapiFolder;
+  SelectMapiFolder,
+  forsix.MapiMail;
 
 procedure TPlayWithOotlookFrm.btnAddMsgStoreClick(Sender: TObject);
 Var
@@ -328,6 +331,120 @@ begin
     ReConnectOutlookApp;
     ShowMessage('Mail Save As : ' + FileName);
   end;
+end;
+
+procedure TPlayWithOotlookFrm.btnSendMailClick(Sender: TObject);
+Var
+  RL : TStringList;
+  AL : TStringList;
+  SubjectStr : String;
+  BodyStr    : String;
+
+  function SendMessageViaOLE(Subject    : WideString;
+                             Body       : WideString;
+                             UseHtml    : Boolean = False;
+                             Recipients : TStringList = nil;
+                             AttachList : TStringList = nil) : Integer;
+  var
+    CurItem   : Integer;
+    MI        : System.IDispatch;
+  begin
+    Result := 0;
+    Try
+      Try
+        MI := OutlookApp.CreateItem(olMailItem) ;
+      Except
+        on e : System.SysUtils.exception Do
+        begin
+          ShowMessage(e.Message);
+        end;
+      End;
+
+      //MailItem.Recipients.Add('johndoe@hotmail.com') ;
+      if Trim(Subject) <> '' then
+        (MI as Outlook2010.MailItem).Subject := Subject;
+
+      if Trim(Body) <> '' then
+      begin
+        if UseHtml then
+          (MI as Outlook2010.MailItem).HTMLBody := Body
+        else
+          (MI as Outlook2010.MailItem).Body := Body;
+      end;
+
+      if Assigned(recipients) then
+      begin
+        for CurItem := 0 to Recipients.Count - 1 do
+        begin
+          if Trim(Recipients.Strings[CurItem]) <> '' then
+            (MI as Outlook2010.MailItem).Recipients.Add(Recipients.Strings[CurItem]);
+          // wait somw more for prevent - Call was rejected by callee.
+          Sleep(110);
+          Application.ProcessMessages;
+        end;
+      end;
+
+      if Assigned(AttachList) then
+      begin
+        for CurItem := 0 to AttachList.Count - 1 do
+        begin
+          if (Trim(AttachList.Strings[CurItem]) <> '') and
+             FileExists(AttachList.Strings[CurItem]) then
+           (MI as Outlook2010.MailItem).Attachments.Add(OleVariant(AttachList.Strings[CurItem]),
+                                                        OleVariant(1),
+                                                        OleVariant(2),
+                                                        OleVariant(ExtractFileName(AttachList.Strings[CurItem])) );
+          // wait somw more for prevent - Call was rejected by callee.
+          Sleep(110);
+          Application.ProcessMessages;
+        end;
+      end;
+
+      //this will show MailItem Outlook Dialog
+      (MI as Outlook2010.MailItem).Display(True);
+
+      //if SendMai then - this will be new parameter
+      //begin
+      //if you want to auto SEND then you have to create OUTLOOK_TLB from 2013 +
+      //(MI as Outlook2010.MailItem).Send;
+      //end
+      //else
+      //begin
+      // (MI as Outlook2010.MailItem).Display(True);
+      //end;
+    Finally
+      Try MI := nil; Except; End;
+    End;
+  end;
+
+
+begin
+  Try
+    SubjectStr := 'Empty Subject';
+
+    BodyStr := '<HTML>' +
+               '<head><style> ' +
+                 'body {color: blue;} ' +
+                 'h1 {color: green;} ' +
+                 'p {color: red;} ' +
+               '</style></head> '+
+               '<BODY> <h1>Test Send mail</h1> Body String <p>Paragraph string</p></BODY><HTML>';
+
+    RL := TStringList.Create;
+    RL.Add('mazluta@hanibaal.co.il');
+
+    AL := TStringList.Create;
+    AL.Add('c:\pics\Anny\47101.Jpg');
+
+    SendMessageViaOLE(SubjectStr,
+                      BodyStr,
+                      True, {UseHtml}
+                      RL,
+                      AL);
+  Finally
+    FreeAndNil(RL);
+    FreeAndNil(AL);
+  End;
 end;
 
 procedure TPlayWithOotlookFrm.btnMoveMailItemToOtherFolderClick(Sender: TObject);
